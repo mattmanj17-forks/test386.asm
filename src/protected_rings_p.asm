@@ -234,11 +234,11 @@ switchToRing0_2:
 	push   ebp
 	push   ebx
 	lds    ebp, [cs:ptrTSSprot]
-	mov    ebx, ds:[ebp+4]      ; Get the base
+	mov    ebx, [ds:ebp+4]      ; Get the base
 	sub    ebx, 0x10+0xC+40     ; Where we should end up in the kernel stack now
 	cmp    esp, ebx             ; Wrong kernel stack?
 	jnz    error
-	mov    ebx, ds:[ebp+8]      ; Get the stack
+	mov    ebx, [ds:ebp+8]      ; Get the stack
 	mov    bp, ss
 	cmp    bx, bp
 	jnz    error                ; Invalid kernel stack
