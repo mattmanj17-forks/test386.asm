@@ -68,6 +68,6 @@ clearTSS:
 	push ebp
 	mov ebp,edi ;End of TSS
 	sub ebp,2 ;point to I/O map base
-	mov word es:[ebp],0x68 ;Make sure that the I/O map base is out of range to trigger faults properly!
+	mov [es:ebp],word 0x68 ;Make sure that the I/O map base is out of range to trigger faults properly!
 	pop ebp
 	ret

@@ -741,8 +741,8 @@ kernelOnlyConformingInterruptReturn:
 	push  es
 	push  ebp
 	les   ebp, [cs:ptrTSSprot]     ; Load our TSS
-	mov   word es:[ebp+0x66], 0    ; Make it available temporarily
-	mov   word es:[ebp+0xC], 0     ; Make the port available
+	mov   word [es:ebp+0x66], 0    ; Make it available temporarily
+	mov   word [es:ebp+0xC], 0     ; Make the port available
 	pop   ebp
 	pop   es
 	call  switchToRing3V86_3       ; Switch to v86 mode to test
@@ -755,7 +755,7 @@ V86IOSucceedFinish:
 	push  es
 	push  ebp
 	les   ebp, [cs:ptrTSSprot]     ; Load our TSS
-	mov   word es:[ebp+0x66], 0x68 ; Make the port unavailable again
+	mov   word [es:ebp+0x66], 0x68 ; Make the port unavailable again
 	pop   ebp
 	pop   es
 
