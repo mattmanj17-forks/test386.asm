@@ -19,6 +19,7 @@ CR0_PG      equ 0x80000000	; set if paging enabled
 
 ACC_TYPE_GATE386_INT  equ 0x0E00
 ACC_TYPE_GATE386_CALL equ 0x0C00
+ACC_TYPE_GATE286_CALL equ 0x0400
 ACC_TYPE_SEG         equ 0x1000
 ACC_PRESENT          equ 0x8000
 ACC_TYPE_CODE_R      equ 0x1a00

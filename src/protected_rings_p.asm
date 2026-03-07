@@ -203,6 +203,7 @@ switchToRing0_2:
 	; In order to swich to kernel mode (ring 0) we'll use a Call Gate.
 	; A placeholder for a Call Gate is already present in the GDT.
 	mov    ecx, ring0_2TestEndLocation   ; read the return offset
+	;Setup a 32-bit call gate
 	lfs    ebx, [cs:ptrGDTUprot]
 	mov    eax, RING0_GATE2
 	mov    esi, C_SEG_PROT32
@@ -212,7 +213,7 @@ switchToRing0_2:
 
 	push   ecx ;Save caller
 
-	; Create a stack of test values to transfer using the call gate
+	; Create a stack of 32-bit test values to transfer using the call gate
 	push   dword 0x12347654
 	push   dword 0x5678CBA9
 	push   dword 0x9ABC3333
@@ -224,12 +225,37 @@ switchToRing0_2:
 	push   dword 0x99AA4444
 	push   dword 0xBBCCFFFF
 
+	; 32-bit call gate
 	call   RING0_GATE2|3:0  ; the RPL needs to be 3, the offset will be ignored.
+
+	;Setup a 16-bit call gate
+	lfs    ebx, [cs:ptrGDTUprot]
+	mov    eax, RING0_GATE2
+	mov    esi, C_SEG_PROT32
+	mov    edi, .ring0_3
+	mov    dx,  ACC_DPL_3|0xA    ; the DPL needs to be 3
+	call   initCallGate286
+
+	; Create a stack of 16-bit test values to transfer using the call gate
+	push   word 0x1234
+	push   word 0x5678
+	push   word 0x9ABC
+	push   word 0xDEF0
+	push   word 0x1122
+	push   word 0x3344
+	push   word 0x5566
+	push   word 0x7788
+	push   word 0x99AA
+	push   word 0xBBCC
+
+	; 16-bit call gate
+	call   RING0_GATE2|3:0  ; the RPL needs to be 3, the offset will be ignored.
+
 	pop    ecx              ; Restore caller
 	call   RING0_GATE|3:0   ; the RPL needs to be 3, the offset will be ignored.
 
 	; This time we return to the caller proper
-.ring0_2:
+.ring0_2: ;32-bit call gate entry point
 	push   ds
 	push   ebp
 	push   ebx
@@ -272,6 +298,50 @@ switchToRing0_2:
 	cmp    [esp+0x08], dword 0xBBCCFFFF
 	jne    error
 	retf   40 ; Return to the user mode code, discarding the parameters from the stack.
+.ring0_3: ;16-bit call gate entry point
+	push   ds
+	push   ebp
+	push   ebx
+	lds    ebp, [cs:ptrTSSprot]
+	mov    ebx, [ds:ebp+4]      ; Get the base
+	sub    ebx, 0x8+0xC+20     ; Where we should end up in the kernel stack now
+	cmp    esp, ebx             ; Wrong kernel stack?
+	jnz    error
+	mov    ebx, [ds:ebp+8]      ; Get the stack
+	mov    bp, ss
+	cmp    bx, bp
+	jnz    error                ; Invalid kernel stack
+	pop    ebx
+	pop    ebp
+	pop    ds
+	push   eax
+	mov    ax, cs
+	cmp    ax, C_SEG_PROT32
+	jnz    error
+	pop    eax
+	; Validate the parameters on the kernel stack
+	cmp    [esp+0x16], word 0x1234
+	jne    error
+	cmp    [esp+0x14], word 0x5678
+	jne    error
+	cmp    [esp+0x12], word 0x9ABC
+	jne    error
+	cmp    [esp+0x10], word 0xDEF0
+	jne    error
+	cmp    [esp+0x0E], word 0x1122
+	jne    error
+	cmp    [esp+0x0C], word 0x3344
+	jne    error
+	cmp    [esp+0x0A], word 0x5566
+	jne    error
+	cmp    [esp+0x08], word 0x7788
+	jne    error
+	cmp    [esp+0x06], word 0x99AA
+	jne    error
+	cmp    [esp+0x04], word 0xBBCC
+	jne    error
+	o16 retf   20 ; Return to the user mode code, discarding the parameters from the stack.
+
 
 
 ;
