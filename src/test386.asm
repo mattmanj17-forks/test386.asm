@@ -68,9 +68,9 @@
 ;
 ; memory map:
 ;  00000-003FF real mode IDT
-;  00400-0052F protected mode IDT
-;  00600-0087F protected mode GDT
-;  00900-00FFF protected mode LDT
+;  00400-0053F protected mode IDT
+;  00600-0090F protected mode GDT
+;  00A00-00FFF protected mode LDT
 ;  01000-01FFF page directory
 ;  02000-02FFF page table 0
 ;  03000-03FFF page table 1
@@ -91,7 +91,7 @@ C_SEG_REAL   equ 0xf000
 S_SEG_REAL   equ 0x1000
 IDT_SEG_REAL equ 0x0040
 GDT_SEG_REAL equ 0x0060
-GDT_SEG_LIMIT equ 0x2FF
+GDT_SEG_LIMIT equ 0x30F
 %assign D1_SEG_REAL TEST_BASE1 >> 4
 %assign D2_SEG_REAL TEST_BASE2 >> 4
 
@@ -276,12 +276,12 @@ initGDT:
 	defGDTDesc C_SEG_PROT32FLAT,  0x00000000,0x000fffff,ACC_TYPE_CODE_R|ACC_PRESENT,EXT_32BIT|EXT_PAGE
 	defGDTDesc CU_SEG_PROT32, 0x000f0000,0x0000ffff,ACC_TYPE_CODE_R|ACC_PRESENT|ACC_DPL_3,EXT_32BIT
 	defGDTDesc CC_SEG_PROT32, 0x000f0000,0x0000ffff,ACC_TYPE_CODE_R|ACC_TYPE_CONFORMING|ACC_PRESENT|EXT_32BIT
-	defGDTDesc IDT_SEG_PROT,  0x00000400,0x00000137,ACC_TYPE_DATA_W|ACC_PRESENT
-	defGDTDesc IDTU_SEG_PROT, 0x00000400,0x0000012F,ACC_TYPE_DATA_W|ACC_PRESENT|ACC_DPL_3
-	defGDTDesc GDT_DSEG_PROT, 0x00000600,0x000002ff,ACC_TYPE_DATA_W|ACC_PRESENT
-	defGDTDesc GDTU_DSEG_PROT,0x00000600,0x000002ff,ACC_TYPE_DATA_W|ACC_PRESENT|ACC_DPL_3
-	defGDTDesc LDT_SEG_PROT,  0x00000900,0x000006ff,ACC_TYPE_LDT|ACC_PRESENT
-	defGDTDesc LDT_DSEG_PROT, 0x00000900,0x000006ff,ACC_TYPE_DATA_W|ACC_PRESENT
+	defGDTDesc IDT_SEG_PROT,  0x00000400,0x0000013F,ACC_TYPE_DATA_W|ACC_PRESENT
+	defGDTDesc IDTU_SEG_PROT, 0x00000400,0x0000013F,ACC_TYPE_DATA_W|ACC_PRESENT|ACC_DPL_3
+	defGDTDesc GDT_DSEG_PROT, 0x00000600,0x0000030f,ACC_TYPE_DATA_W|ACC_PRESENT
+	defGDTDesc GDTU_DSEG_PROT,0x00000600,0x0000030f,ACC_TYPE_DATA_W|ACC_PRESENT|ACC_DPL_3
+	defGDTDesc LDT_SEG_PROT,  0x00000A00,0x000005ff,ACC_TYPE_LDT|ACC_PRESENT
+	defGDTDesc LDT_DSEG_PROT, 0x00000A00,0x000005ff,ACC_TYPE_DATA_W|ACC_PRESENT
 	defGDTDesc PG_SEG_PROT,   0x00001000,0x00003fff,ACC_TYPE_DATA_W|ACC_PRESENT
 	defGDTDesc S_SEG_PROT32,  0x00010000,0x0008ffff,ACC_TYPE_DATA_W|ACC_PRESENT,EXT_32BIT
 	defGDTDesc D_SEG_PROT32FLAT,  0x00000000,0x000fffff,ACC_TYPE_DATA_W|ACC_PRESENT,EXT_32BIT|EXT_PAGE
@@ -331,7 +331,7 @@ ptrTSSprot: ; pointer to the task state segment
 	dd 0
 	dw TSS_DSEG_PROT
 addrProtIDT: ; address of pmode IDT to be used with lidt
-	dw 0x137              ; 16-bit limit
+	dw 0x13F              ; 16-bit limit
 	dd IDT_SEG_REAL << 4 ; 32-bit base address
 addrGDT: ; address of GDT to be used with lgdt
 	dw GDT_SEG_LIMIT
@@ -682,9 +682,13 @@ protTests:
 
 	; We should have the intial user mode stack setup right now for the below checks to validate.
 
-	; Interrupt from user mode to kernel mode
+	; Interrupt from user mode to kernel mode using a 32-bit interrupt gate
 	int   0x20
 kernelModeInterruptReturn:
+	; Interrupt from user mode to kernel using a 16-bit interrupt gate
+	int   0x27
+	
+kernelModeInterruptReturn286:
 	; Interrupt from user mode to kernel conforming
 	int   0x21
 kernelConformingInterruptReturn:
@@ -774,8 +778,6 @@ kernelModeOnlyInterruptReturn:
 	mov  eax, esp  ; Save the stack pointer for us to check, as the interrupt doesn't have a comparison.
 	int  0x24
 kernelOnlyConformingInterruptReturn:
-	; Interrupt to 16-bit interrupt handler, with 32-bit code.
-	int  0x26
 
 	; Test user to kernel stack switch using different address spaces
 	; Interrupt from user mode to kernel mode (flat address space)
@@ -785,7 +787,7 @@ kernelModeInterruptKernelStackReturn:
 	push kernelModeInterruptKernelStackReturnPoint
 	call  switchToRing0
 	kernelModeInterruptKernelStackReturnPoint:
-	; Back in normal 32-bit protected mode with 16-bit segments again
+	; Back in normal 32-bit protected mode with 16-bit segment limits again
 
 	;
 	; Validate Virtual-8086 mode.
