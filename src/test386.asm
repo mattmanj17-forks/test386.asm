@@ -344,6 +344,12 @@ initIntGateReal:
 	popad
 	ret
 
+initIntGateReal286:
+	pushad
+	initIntGate286
+	popad
+	ret
+
 initIDT:
 	lds    ebx, [cs:ptrIDTreal]
 	mov    esi, C_SEG_PROT32
@@ -392,13 +398,21 @@ initIDT:
 	mov    dx,  ACC_DPL_3
 	inc    eax
 	call   initIntGateReal
-	; Interrupt 26h: non-conforming kernel interrupt, flat memory, callable from user mode
+	; Interrupt 26h: non-conforming kernel interrupt, flat memory, callable from user mode. Restores kernel stack to 32-bit
 	mov    esi, C_SEG_PROT32FLAT
 	mov    edi, kernelInterruptRestoreKernelStack
 	or     edi,0xE00F0000 ;Make sure that the offset is located on a valid 32-bit mapped address by mapping the high 16 bits.
 	mov    dx,  ACC_DPL_3
 	inc    eax
 	call   initIntGateReal
+
+	; Interrupt 27h: non-conforming 286 kernel interrupt, callable from user mode.
+	mov    esi, C_SEG_PROT32
+	mov    edi, kernelInterrupt286
+	or     edi,0xFFFF0000 ;Make sure that the offset is located on a invalid 32-bit mapped address by mapping the high 16 bits, which are not to be used.
+	mov    dx,  ACC_DPL_3
+	inc    eax
+	call   initIntGateReal286
 
 	jmp initPaging
 
@@ -760,6 +774,8 @@ kernelModeOnlyInterruptReturn:
 	mov  eax, esp  ; Save the stack pointer for us to check, as the interrupt doesn't have a comparison.
 	int  0x24
 kernelOnlyConformingInterruptReturn:
+	; Interrupt to 16-bit interrupt handler, with 32-bit code.
+	int  0x26
 
 	; Test user to kernel stack switch using different address spaces
 	; Interrupt from user mode to kernel mode (flat address space)

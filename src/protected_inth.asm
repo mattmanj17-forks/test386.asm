@@ -32,6 +32,39 @@ kernelInterrupt:
 	iret                       ; Simply return to user mode
 
 ;
+; Kernel mode interrupt handler
+;
+kernelInterrupt286:
+	testCPL 0                  ; Elevates to CPL 0
+	push  ebx
+	push  ecx
+	push  ds
+	lds   ebx, [cs:ptrTSSprot] ; Get the TSS
+	mov   ecx, [ebx+4]         ; Get TSS ESP0
+	sub   ecx, 0x0A+0x6        ; Where we should end up on the kernel stack, taking into account what we just pushed
+	cmp   esp, ecx             ; Did the stack decrease correctly?
+	jne   error
+	mov   cx, ss
+	cmp   cx, word [ebx+8]     ; Did the stack pointer load correctly?
+	jne   error
+	pop   ds
+	pop   ecx
+	mov   bx, cs
+	cmp   bx, C_SEG_PROT32     ; Did we end up in kernel mode correctly?
+	jne   error
+	pop   ebx
+	cmp   word [esp+0x00], kernelModeInterruptReturn
+	jne   error                ; Invalid return address
+	cmp   word [esp+0x02], CU_SEG_PROT32|3
+	jne   error                ; Invalid return code segment
+	; Ignore eflags
+	cmp   word [esp+0x06], ESP_R3_PROT
+	jne   error                ; Invalid return ESP
+	cmp   word [esp+0x10], SU_SEG_PROT32|3
+	jne   error                ; Invalid user stack segment
+	iret                       ; Simply return to user mode
+
+;
 ; Kernel mode interrupt handler for flat 32-bit protected mode. Restores the ring0 stack for 16-bit addressing.
 ;
 kernelInterruptRestoreKernelStack: 
