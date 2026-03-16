@@ -40,6 +40,18 @@
 	mov    word [ebx+6], di ; OFFSET 31-16
 %endmacro
 
+%macro initIntGate286 0
+	shl    eax, 3
+	add    ebx, eax
+	mov    word [ebx], di ; OFFSET 15-0
+	mov    word [ebx+2], si ; SELECTOR
+	or     dx, ACC_TYPE_GATE286_INT | ACC_PRESENT
+	mov    word [ebx+4], dx
+	shr    edi, 16
+	mov    word [ebx+6], di ; OFFSET 31-16
+%endmacro
+
+
 ;
 ; Set a descriptor in system memory.
 ; This is the body of procedures used in 16 and 32-bit code segments.

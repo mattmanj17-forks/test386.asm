@@ -68,13 +68,14 @@
 ;
 ; memory map:
 ;  00000-003FF real mode IDT
-;  00400-0052F protected mode IDT
-;  00600-0087F protected mode GDT
-;  00900-00FFF protected mode LDT
+;  00400-0053F protected mode IDT
+;  00600-0090F protected mode GDT
+;  00A00-00FFF protected mode LDT
 ;  01000-01FFF page directory
 ;  02000-02FFF page table 0
 ;  03000-03FFF page table 1
-;  04000-04FFF TSS
+;  04000-04FFF page table 2 (kernel mode)
+;  05000-05FFF TSS
 ;  10000-1FFFF stack
 ;  20000-9FFFF tests
 ;
@@ -90,7 +91,7 @@ C_SEG_REAL   equ 0xf000
 S_SEG_REAL   equ 0x1000
 IDT_SEG_REAL equ 0x0040
 GDT_SEG_REAL equ 0x0060
-GDT_SEG_LIMIT equ 0x2FF
+GDT_SEG_LIMIT equ 0x30F
 %assign D1_SEG_REAL TEST_BASE1 >> 4
 %assign D2_SEG_REAL TEST_BASE2 >> 4
 
@@ -246,6 +247,7 @@ cpuTest:
 	jmp initGDT
 
 ESP_R0_PROT equ 0x0000FFFF
+ESP_R0_PROTFLAT equ 0xE001FFFF
 ESP_R3_PROT equ 0x00007FFF
 
 %include "protected_m.asm"
@@ -271,16 +273,18 @@ initGDT:
 	defGDTDesc NULL
 	defGDTDesc C_SEG_PROT16,  0x000f0000,0x0000ffff,ACC_TYPE_CODE_R|ACC_PRESENT
 	defGDTDesc C_SEG_PROT32,  0x000f0000,0x0000ffff,ACC_TYPE_CODE_R|ACC_PRESENT,EXT_32BIT
+	defGDTDesc C_SEG_PROT32FLAT,  0x00000000,0x000fffff,ACC_TYPE_CODE_R|ACC_PRESENT,EXT_32BIT|EXT_PAGE
 	defGDTDesc CU_SEG_PROT32, 0x000f0000,0x0000ffff,ACC_TYPE_CODE_R|ACC_PRESENT|ACC_DPL_3,EXT_32BIT
 	defGDTDesc CC_SEG_PROT32, 0x000f0000,0x0000ffff,ACC_TYPE_CODE_R|ACC_TYPE_CONFORMING|ACC_PRESENT|EXT_32BIT
-	defGDTDesc IDT_SEG_PROT,  0x00000400,0x0000012F,ACC_TYPE_DATA_W|ACC_PRESENT
-	defGDTDesc IDTU_SEG_PROT, 0x00000400,0x0000012F,ACC_TYPE_DATA_W|ACC_PRESENT|ACC_DPL_3
-	defGDTDesc GDT_DSEG_PROT, 0x00000600,0x000002ff,ACC_TYPE_DATA_W|ACC_PRESENT
-	defGDTDesc GDTU_DSEG_PROT,0x00000600,0x000002ff,ACC_TYPE_DATA_W|ACC_PRESENT|ACC_DPL_3
-	defGDTDesc LDT_SEG_PROT,  0x00000900,0x000006ff,ACC_TYPE_LDT|ACC_PRESENT
-	defGDTDesc LDT_DSEG_PROT, 0x00000900,0x000006ff,ACC_TYPE_DATA_W|ACC_PRESENT
-	defGDTDesc PG_SEG_PROT,   0x00001000,0x00002fff,ACC_TYPE_DATA_W|ACC_PRESENT
+	defGDTDesc IDT_SEG_PROT,  0x00000400,0x0000013F,ACC_TYPE_DATA_W|ACC_PRESENT
+	defGDTDesc IDTU_SEG_PROT, 0x00000400,0x0000013F,ACC_TYPE_DATA_W|ACC_PRESENT|ACC_DPL_3
+	defGDTDesc GDT_DSEG_PROT, 0x00000600,0x0000030f,ACC_TYPE_DATA_W|ACC_PRESENT
+	defGDTDesc GDTU_DSEG_PROT,0x00000600,0x0000030f,ACC_TYPE_DATA_W|ACC_PRESENT|ACC_DPL_3
+	defGDTDesc LDT_SEG_PROT,  0x00000A00,0x000005ff,ACC_TYPE_LDT|ACC_PRESENT
+	defGDTDesc LDT_DSEG_PROT, 0x00000A00,0x000005ff,ACC_TYPE_DATA_W|ACC_PRESENT
+	defGDTDesc PG_SEG_PROT,   0x00001000,0x00003fff,ACC_TYPE_DATA_W|ACC_PRESENT
 	defGDTDesc S_SEG_PROT32,  0x00010000,0x0008ffff,ACC_TYPE_DATA_W|ACC_PRESENT,EXT_32BIT
+	defGDTDesc D_SEG_PROT32FLAT,  0x00000000,0x000fffff,ACC_TYPE_DATA_W|ACC_PRESENT,EXT_32BIT|EXT_PAGE
 	defGDTDesc SU_SEG_PROT32, 0x00010000,0x0008ffff,ACC_TYPE_DATA_W|ACC_PRESENT|ACC_DPL_3,EXT_32BIT
 	defGDTDesc TSS_PROT,      0x00004000,0x00000067,ACC_TYPE_TSS|ACC_PRESENT|ACC_DPL_3
 	defGDTDesc TSS_DSEG_PROT, 0x00004000,0x00000067,ACC_TYPE_DATA_W|ACC_PRESENT
@@ -314,14 +318,20 @@ ptrPT0prot: ; pointer to Page Table 0
 ptrPT1prot: ; pointer to Page Table 1
 	dd 0x2000
 	dw PG_SEG_PROT
+ptrPT2prot: ; pointer to Page Table 2 (upper half kernel)
+	dd 0x3000
+	dw PG_SEG_PROT
 ptrSSprot: ; pointer to the stack for pmode
 	dd ESP_R0_PROT
 	dw S_SEG_PROT32
+ptrSSprotFLAT: ; pointer to the stack for pmode
+	dd ESP_R0_PROTFLAT
+	dw D_SEG_PROT32FLAT
 ptrTSSprot: ; pointer to the task state segment
 	dd 0
 	dw TSS_DSEG_PROT
 addrProtIDT: ; address of pmode IDT to be used with lidt
-	dw 0x12F              ; 16-bit limit
+	dw 0x13F              ; 16-bit limit
 	dd IDT_SEG_REAL << 4 ; 32-bit base address
 addrGDT: ; address of GDT to be used with lgdt
 	dw GDT_SEG_LIMIT
@@ -331,6 +341,12 @@ addrGDT: ; address of GDT to be used with lgdt
 initIntGateReal:
 	pushad
 	initIntGate
+	popad
+	ret
+
+initIntGateReal286:
+	pushad
+	initIntGate286
 	popad
 	ret
 
@@ -382,6 +398,21 @@ initIDT:
 	mov    dx,  ACC_DPL_3
 	inc    eax
 	call   initIntGateReal
+	; Interrupt 26h: non-conforming kernel interrupt, flat memory, callable from user mode. Restores kernel stack to 32-bit
+	mov    esi, C_SEG_PROT32FLAT
+	mov    edi, kernelInterruptRestoreKernelStack
+	or     edi,0xE00F0000 ;Make sure that the offset is located on a valid 32-bit mapped address by mapping the high 16 bits.
+	mov    dx,  ACC_DPL_3
+	inc    eax
+	call   initIntGateReal
+
+	; Interrupt 27h: non-conforming 286 kernel interrupt, callable from user mode.
+	mov    esi, C_SEG_PROT32
+	mov    edi, kernelInterrupt286
+	or     edi,0xFFFF0000 ;Make sure that the offset is located on a invalid 32-bit mapped address by mapping the high 16 bits, which are not to be used.
+	mov    dx,  ACC_DPL_3
+	inc    eax
+	call   initIntGateReal286
 
 	jmp initPaging
 
@@ -390,9 +421,10 @@ initPaging:
 ; pages:
 ;  00000-00FFF   1  1000h   4K IDTs, GDT and LDT
 ;  01000-01FFF   1  1000h   4K page directory
-;  02000-02FFF   1  1000h   4K page table 0
+;  02000-02FFF   1  1000h   4K page table 0 (user mode at 00000000 linear)
 ;  03000-03FFF   1  1000h   4K page table 1
-;  04000-04FFF   1  1000h   4K task switch segments
+;  04000-04FFF   1  1000h   4K page table 2 (kernel mode at E0000000 linear)
+;  05000-05FFF   1  1000h   4K task switch segments
 ;  05000-0FFFF  11  c000h  44K free
 ;  10000-1FFFF  16 10000h  64K stack
 ;  20000-9EFFF 127 7f000h 508K tests
@@ -401,6 +433,7 @@ initPaging:
 PAGE_DIR_ADDR equ 0x1000
 PAGE_TBL0_ADDR equ PAGE_DIR_ADDR+0x1000
 PAGE_TBL1_ADDR equ PAGE_DIR_ADDR+0x2000
+PAGE_TBL2_ADDR equ PAGE_DIR_ADDR+0x3000
 
 ;   Now we want to build a page directory and a page table. We need two pages of
 ;   4K-aligned physical memory.  We use a hard-coded address, segment 0x100,
@@ -421,6 +454,7 @@ PAGE_TBL1_ADDR equ PAGE_DIR_ADDR+0x2000
 	mov   ecx, 1024-1 ; ECX == number of (remaining) PDEs to write
 	xor   eax, eax    ; fill remaining PDEs with 0
 	rep   stosd
+
 ;
 ;   Build a page table at EDI with 256 (out of 1024) valid PTEs, mapping the first 1MB
 ;   as linear == physical.
@@ -434,6 +468,28 @@ PAGE_TBL1_ADDR equ PAGE_DIR_ADDR+0x2000
 	mov   ecx, 1024-256 ; ECX == number of (remaining) PTEs to write
 	xor   eax, eax
 	rep   stosd
+
+;
+;   Build a page table at EDI with 256 (out of 1024) valid PTEs, mapping the kernel 1MB
+;   as high linear == physical low, using kernel mode pages.
+;
+	mov   eax, PTE_PRESENT | PTE_WRITE
+	mov   ecx, 256 ; ECX == number of PTEs to write
+	mov   edi, 0x3000 ;Kernel mode PDT base address
+.initPT2:
+	stosd
+	add   eax, 0x1000
+	loop  .initPT2
+	mov   ecx, 1024-256 ; ECX == number of (remaining) PTEs to write
+	xor   eax, eax
+	rep   stosd
+
+;
+; Map the kernel mode 1MB memory at E0000000 using the created PT2 map within the page directory.
+;
+	mov   eax, PAGE_TBL2_ADDR | PTE_PRESENT | PTE_WRITE
+	mov   [es:0xE00], eax
+
 
 switchToProtMode:
 	cli ; make sure interrupts are off now, since we've not initialized the IDT yet
@@ -468,6 +524,7 @@ initLDT:
 	lldt ax
 	mov  ax, TSS_PROT
 	ltr  ax
+	loadProtModeStack ;Make sure that the stack is valid for our tests.
 	jmp  protTests
 
 %include "tss_p.asm"
@@ -625,9 +682,13 @@ protTests:
 
 	; We should have the intial user mode stack setup right now for the below checks to validate.
 
-	; Interrupt from user mode to kernel mode
+	; Interrupt from user mode to kernel mode using a 32-bit interrupt gate
 	int   0x20
 kernelModeInterruptReturn:
+	; Interrupt from user mode to kernel using a 16-bit interrupt gate
+	int   0x27
+	
+kernelModeInterruptReturn286:
 	; Interrupt from user mode to kernel conforming
 	int   0x21
 kernelConformingInterruptReturn:
@@ -717,6 +778,16 @@ kernelModeOnlyInterruptReturn:
 	mov  eax, esp  ; Save the stack pointer for us to check, as the interrupt doesn't have a comparison.
 	int  0x24
 kernelOnlyConformingInterruptReturn:
+
+	; Test user to kernel stack switch using different address spaces
+	; Interrupt from user mode to kernel mode (flat address space)
+	call  switchToRing3FLATkernel ;Switch to ring 3 with flat kernel stack prepared
+	int   0x26
+kernelModeInterruptKernelStackReturn:
+	push kernelModeInterruptKernelStackReturnPoint
+	call  switchToRing0
+	kernelModeInterruptKernelStackReturnPoint:
+	; Back in normal 32-bit protected mode with 16-bit segment limits again
 
 	;
 	; Validate Virtual-8086 mode.

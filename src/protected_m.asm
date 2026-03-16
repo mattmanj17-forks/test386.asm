@@ -25,6 +25,16 @@
 	dw    (%2 >> 16) & 0xffff ; OFFSET 31-16
 %endmacro
 
+;
+;   Defines an interrupt gate in ROM, given a selector (%1) and an offset (%2)
+;
+%macro defIntGate286 2
+	dw    (%2 & 0xffff) ; OFFSET 15-0
+	dw    %1 ; SELECTOR
+	dw    ACC_TYPE_GATE286_INT | ACC_PRESENT ; acc byte
+	dw    0xffff ; OFFSET 31-16 (not used)
+%endmacro
+
 %assign GDTSelDesc 0
 ;
 ;   Defines a GDT descriptor in ROM, given a name (%1), base (%2), limit (%3),
