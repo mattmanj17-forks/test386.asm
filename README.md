@@ -21,10 +21,12 @@ For the full list of tested opcodes see **`intel-opcodes.ods`**.
 Those opcodes that are tested have the relevant diagnostic code in the "test in
 real mode" and/or "test in prot. mode" columns.  
 
+Note that many of the opcodes that aren't explicitly tested are nonetheless
+used throughout the ROM and you can expect crashes or infinite loops in case
+they don't work properly.
+
 Please refer to the [How to use](#how-to-use) section for the list of
-performed tests. Note that many of the opecodes that aren't explicitly
-tested are nonetheless used throughout the ROM and you can expect crashes or
-infinite loops in case they don't work properly.
+performed tests.
 
 Although the program can run on any x86 32-bit compatible CPU, its testing
 routines are limited to the functionality of the Intel 80386 processor family.
