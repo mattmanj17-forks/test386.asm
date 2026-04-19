@@ -7,6 +7,7 @@ PS_TF       equ 0x0100
 PS_IF       equ 0x0200
 PS_DF       equ 0x0400
 PS_OF       equ 0x0800
+PS_NT       equ 0x4000
 PS_ARITH    equ (PS_CF | PS_PF | PS_AF | PS_ZF | PS_SF | PS_OF)
 PS_LOGIC    equ (PS_CF | PS_PF | PS_ZF | PS_SF | PS_OF)
 PS_MULTIPLY equ (PS_CF | PS_OF) ; only CF and OF are "defined" following MUL or IMUL
@@ -17,10 +18,20 @@ PS_SHIFTS_R equ (PS_CF | PS_SF | PS_ZF | PS_PF)
 CR0_MSW_PE  equ 0x0001
 CR0_PG      equ 0x80000000	; set if paging enabled
 
+;Flags available for load/store tests in user mode
+FLAGS_AVL equ (PS_CF|PS_PF|PS_AF|PS_ZF|PS_SF|PS_DF|PS_PF)
+;Flags that are always set.
+FLAGS_FORCEDSET equ 2
+;Flags that are all set
+FLAGS_SET equ (FLAGS_AVL|FLAGS_FORCEDSET)
+;Flags that are all cleared
+FLAGS_CLEARED equ FLAGS_FORCEDSET
+
 ACC_TYPE_GATE386_INT  equ 0x0E00
 ACC_TYPE_GATE286_INT  equ 0x0600
 ACC_TYPE_GATE386_CALL equ 0x0C00
 ACC_TYPE_GATE286_CALL equ 0x0400
+ACC_TYPE_GATE_TSS    equ 0x0500
 ACC_TYPE_SEG         equ 0x1000
 ACC_PRESENT          equ 0x8000
 ACC_TYPE_CODE_R      equ 0x1a00
@@ -29,6 +40,7 @@ ACC_TYPE_DATA_R      equ 0x1000
 ACC_TYPE_DATA_W      equ 0x1200
 ACC_TYPE_LDT         equ 0x0200
 ACC_TYPE_TSS         equ 0x0900
+ACC_TYPE_TSS16       equ 0x0100
 
 ACC_DPL_0 equ 0x0000
 ACC_DPL_1 equ 0x2000
@@ -69,3 +81,8 @@ EX_GP equ 13
 EX_PF equ 14
 EX_MF equ 15
 
+;Keep RPL at 0 to detect incorrect protected mode loading. Simple 64K alignment for ease of use.
+V86_DS equ 0x2010
+V86_ES equ 0x3040
+V86_FS equ 0x5060
+V86_GS equ 0x7080
